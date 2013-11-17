@@ -3,9 +3,73 @@ var redis = require('redis');
 var db = redis.createClient(),
   client = redis.createClient();
 
+var util  = require('util'),
+    spawn = require('child_process').spawn;
+
+var fs = require('fs');
+
+var exec = require('child_process').exec;
+
+var kue = require('kue')
+  , jobs = kue.createQueue();
+
 var app = express();
 app.set('api key', '42h4ckcess');
 app.use(checkAuth);
+
+
+
+jobs.process('buildprofile', function(job, done){
+  console.log('processing ' + job.data.profileid);
+  
+  var profileid = job.data.profileid;
+
+  client.get('profiles:' + profileid, function (err, data) {
+      
+     fs.writeFile("/tmp/" + profileid + '.lua', data, function(err) {
+         if(err) {
+             console.log(err);
+         } else {
+             console.log("The file was saved!");
+         }
+     }); 
+
+
+
+    server  = spawn('/opt/osrm-indus/build-osrm-config.sh', ['/tmp/' + profileid + '.lua',  '5004'],  {
+   detached: true});
+
+server.stdout.on('data', function (data) {
+  console.log('stdout: ' + data);
+});
+
+server.stderr.on('data', function (data) {
+  console.log('stderr: ' + data);
+});
+
+server.on('exit', function (code) {
+  console.log('child process exited with code ' + code);
+});
+
+
+
+     // child = exec('/opt/osrm-indus/build-osrm-config.sh /tmp/' + profileid + '.lua  5004', function (error, stdout, stderr) {
+     //   console.log('stdout: ' + stdout);
+     //   console.log('stderr: ' + stderr);
+     //   if (error !== null) {
+     //         console.log('exec error ' + error);
+     //   }
+
+     // });
+
+  done();
+
+
+  });
+
+
+
+});
 
 
 app.configure(function () {
@@ -68,10 +132,16 @@ app.post('/profiles/:profileid', function(req, res){
              req.rawBody = data;
         
              console.log("creating a profile: profileid: " + profileid);
-             console.log(req.rawBody);
+             // console.log(req.rawBody);
         
              client.set('profiles:' + profileid, req.rawBody, function (err, didSet) {
-                 res.end(JSON.stringify({created: 'ok'}));
+
+                  jobs.create('buildprofile', {
+                    profileid: profileid
+                  }).save();
+
+                  res.end(JSON.stringify({created: 'ok'}));
+
              });
 
           });

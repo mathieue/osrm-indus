@@ -6,6 +6,8 @@
   "dependencies": {
     "express": "3.x",
     "redis": "*",
+    "sleep": "*",
+    "kue": "*",
     "jade": "0.20.x"
   }
 }
