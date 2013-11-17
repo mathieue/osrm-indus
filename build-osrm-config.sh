@@ -56,30 +56,5 @@ timestamp=${builddir}/map.osrm.timestamp
 EOF
 
 
-
-nginxconf=/etc/nginx/sites-available/${soloname}
-
-cat <<EOF > $nginxconf || die
-server {
-        listen   8000; ## listen for ipv4; this line is default and implied
-        server_name ${soloname};
-
-       location /${soloname} {
-               rewrite /${soloname}(.*) \$1 break;
-               proxy_pass http://127.0.0.1:${2};
-               proxy_redirect     off;
-               proxy_set_header   Host             \$host;
-               proxy_set_header   X-Real-IP        \$remote_addr;
-               proxy_set_header   X-Forwarded-For  \$proxy_add_x_forwarded_for;
-        }
-
-
-}
-EOF
-
-ln -sf /etc/nginx/sites-available/${soloname} /etc/nginx/sites-enabled/${soloname} || die
-
-/etc/init.d/nginx reload || die
-
 nohup 2>&1 $builddir/osrm-routed | logger -t osrm-indus  &
 exit 0
